@@ -90,7 +90,7 @@ fs.readdir("Sounds", function(err, files) {
 		sounds += os.EOL;
 	});
 
-	logger.info("Sounds: " + sounds);
+	//logger.info("Sounds: " + sounds);
 
 	fs.writeFile('sounds.txt', sounds, function(err) {
 		if(err) {
