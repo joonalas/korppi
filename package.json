@@ -1,14 +1,12 @@
 {
   "name": "korppi-bot",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Paskainen soundboard.",
   "main": "korppi.js",
   "author": "Josselin Tsaikovski",
   "dependencies": {
-    "discord.js": "github:discordjs/discord.js",
-    "node-gyp": "^6.0.1",
-    "node-opus": "^0.3.3",
-    "opusscript": "0.0.7",
-    "winston": "^3.2.1"
+    "discord.js": "*",
+    "node-gyp": "*",
+    "winston": "*"
   }
 }

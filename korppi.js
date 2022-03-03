@@ -1,7 +1,5 @@
 var Discord = require('discord.js');
 var logger = require('winston');
-var opus = require('node-opus');
-var opusScript = require('opusscript');
 var { prefix, token } = require('./auth.json');
 var fs = require('fs');
 var path = require('path');
@@ -19,7 +17,7 @@ logger.add(new logger.transports.Console, {
 logger.level = 'debug';
 
 // Initialize Discord Bot
-var client = new Discord.Client();
+var client = new Discord.Client({ intents: [Discord.Intents.FLAGS.GUILDS] });
 var isReady = true;
 
 client.on('ready', async evnt => {
