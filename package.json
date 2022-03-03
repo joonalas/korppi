@@ -5,7 +5,10 @@
   "main": "korppi.js",
   "author": "Josselin Tsaikovski",
   "dependencies": {
+    "@discordjs/voice": "*",
     "discord.js": "*",
+    "ffmpeg-static": "*",
+    "libsodium-wrappers": "*",
     "node-gyp": "*",
     "winston": "*"
   }
