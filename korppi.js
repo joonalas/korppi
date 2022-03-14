@@ -8,6 +8,8 @@ var os = require('os');
 var https = require('https');
 
 var textChannel = null;
+
+// Voice connections are mapped to guild ids, audio players are mapped to voice channel ids
 const activeVoiceConnections = new Map();
 const activeAudioPlayers = new Map();
 
@@ -59,8 +61,7 @@ client.on('messageCreate', async message => {
 		} else if (voiceChannel) {
 			readSoundsFile(data => {
 				const regex = new RegExp("^" + cmd + "$", "gm");
-				logger.debug("REGEX DEBUG " + data);
-				if(!regex.test(data.toString('utf8')))
+				if(!regex.test(data))
 				{
 					textChannel.send("Mit\xE4p\xE4 jos toope k\xE4ytt\xE4isit vaikka oikeita komentoja?");
 					textChannel.send("Pelle...");
@@ -74,15 +75,20 @@ client.on('messageCreate', async message => {
 });
 
 function leaveChannel(voiceChannel) {
-		if(voiceChannel && activeVoiceConnections.has(voiceChannel.id))
+		if(voiceChannel && activeVoiceConnections.has(voiceChannel.guildId))
 		{
-			activeAudioPlayers.get(voiceChannel.id).stop();
-			activeAudioPlayers.delete(voiceChannel.id);
-			var voiceConnection = activeVoiceConnections.get(voiceChannel.id);
-			voiceConnection.disconnect();
-			voiceConnection.destroy();
-			activeVoiceConnections.delete(voiceChannel.id);
-		} else { textChannel.send("Haista sin\xE4 vittu!"); }
+			var voiceConnection = activeVoiceConnections.get(voiceChannel.guildId);
+			if(voiceConnection.joinConfig.channelId == voiceChannel.id)
+			{
+				activeAudioPlayers.get(voiceChannel.id).stop();
+				activeAudioPlayers.delete(voiceChannel.id);
+				voiceConnection.disconnect();
+				if(voiceConnection.state.status == "destroyed") { voiceConnection.destroy(); }
+				activeVoiceConnections.delete(voiceChannel.guildId);
+				return;
+			}
+		}
+		textChannel.send("Haista sin\xE4 vittu!");
 }
 	
 
@@ -99,18 +105,13 @@ function printCommands() {
 }
 
 client.on('voiceStateUpdate', (oldState, newState) => {
-	var channelId = oldState.channelId;
-	if(activeVoiceConnections.has(channelId))
+	if(!oldState.member.user.bot && activeVoiceConnections.has(oldState.guild.id))
 	{
-		client.channels.fetch(channelId).then(voiceChannel => {
-			var voiceConnection = activeVoiceConnections.get(channelId);
+		client.channels.fetch(oldState.channelId).then(voiceChannel => {
+			var voiceConnection = activeVoiceConnections.get(voiceChannel.guildId);
 			if(voiceChannel.members.size < 2) {
-				voiceConnection.disconnect();
-				voiceConnection.destroy();
-				activeVoiceConnections.delete(channelId);
-				activeAudioPlayers.get(channelId).stop();
-				activeAudioPlayers.delete(channelId);
-			}
+				leaveChannel(voiceChannel);
+			}			
 		});
 	} 
 
@@ -119,33 +120,34 @@ client.on('voiceStateUpdate', (oldState, newState) => {
 function play(voiceChannel, sound) {
 	var voiceConnection = null; 
 	var audioPlayer = null;
-	if(activeVoiceConnections.has(voiceChannel.id))
+	if(activeVoiceConnections.has(voiceChannel.guildId))
 	{
-		voiceConnection = activeVoiceConnections.get(voiceChannel.id);
-		audioPlayer = activeAudioPlayers.get(voiceChannel.id);
+		voiceConnection = activeVoiceConnections.get(voiceChannel.guildId);
+		if(voiceConnection.joinConfig.channelId != voiceChannel.id)
+		{
+			voiceConnection.disconnect();
+			voiceConnection.rejoin({ channelId: voiceChannel.id });
+		}
 	}	
-	if(voiceConnection == null) {
+	else {
 		voiceConnection = DiscordVoice.joinVoiceChannel({
 			channelId: voiceChannel.id,
 			guildId: voiceChannel.guildId,
 			adapterCreator: client.guilds.cache.get(voiceChannel.guildId).voiceAdapterCreator
 		});
-		if(activeAudioPlayers.has(voiceChannel.id))
-		{
-			audioPlayer = activeAudioPlayers.get(voiceChannel.id);
-		}
-		else
-		{	
-			audioPlayer = DiscordVoice.createAudioPlayer();
-			audioPlayer.on('stateChange', (oldState, newState) => {
-				logger.info("AudioPlayer state changed: " + oldState.status + " -> " + newState.status);
-				if(newState.status == 'idle') { /*isReady = true;*/ }
-			});
-			activeAudioPlayers.set(voiceChannel.id, audioPlayer);
-		}
-		voiceConnection.subscribe(audioPlayer);
-		activeVoiceConnections.set(voiceChannel.id, voiceConnection);
+		activeVoiceConnections.set(voiceChannel.guildId, voiceConnection);
 	}
+	if(activeAudioPlayers.has(voiceChannel.id))
+	{
+		audioPlayer = activeAudioPlayers.get(voiceChannel.id);
+	}
+	else
+	{	
+		audioPlayer = DiscordVoice.createAudioPlayer();
+		activeAudioPlayers.set(voiceChannel.id, audioPlayer);
+	}
+	voiceConnection.subscribe(audioPlayer);
+	
 	var audioResource = DiscordVoice.createAudioResource(sound);
 	audioPlayer.play(audioResource);
 }
@@ -159,8 +161,7 @@ function showSounds() {
 function readSoundsFile(callback) {
 	fs.readFile('sounds.txt', function (err, data) {
 		if (err) throw err;
-		//data.replace(/^$/gm, "");
-		callback(data);
+		callback(data.toString('utf8').replace(/\n$/g, ""));
 	});
 }
 
@@ -181,11 +182,11 @@ function upload(attachment, snowflake) {
 		updateSounds(function () {
 			readSoundsFile(function (data) {
 				var MP3ext = /\.mp3$/;
-				if (data.toString('utf8').includes(attachment.name.replace(MP3ext, ""))) {
+				if (data.includes(attachment.name.replace(MP3ext, ""))) {
 					textChannel.send("Paskainen \xE4\xE4niklippisi on ladattu onnistuneesti, saatanan kurttumuna....");
 				} else {
 					logger.info(attachment.name.replace(MP3ext, ""));
-					logger.info(data.toString('utf8'));
+					logger.info(data);
 				}
 			});
 		});
@@ -198,7 +199,7 @@ function deleteSound(soundname) {
 		if(soundname === undefined) {
 			textChannel.send("Pelleiletk\xF6 kanssani? Kerroppas mursu nyt ihan selke\xE4sti, ett\xE4 mit\xE4 haluat poistaa.");
 			return;
-		} else if (!data.toString('utf8').includes(soundname)) {
+		} else if (!data.includes(soundname)) {
 			textChannel.send("Taliaivo!!! Eih\xE4n minulla edes ole moista klippi\xE4, perkele!!!");
 			return;
 		} 
