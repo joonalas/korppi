@@ -22,7 +22,13 @@ logger.add(new logger.transports.Console, {
 logger.level = 'debug';
 
 // Initialize Discord Bot
-var client = new Discord.Client({ intents: [Discord.Intents.FLAGS.GUILDS, Discord.Intents.FLAGS.GUILD_MESSAGES, Discord.Intents.FLAGS.GUILD_VOICE_STATES] });
+var client = new Discord.Client({ 
+    intents: 
+    [
+        Discord.GatewayIntentBits.Guilds,
+        Discord.GatewayIntentBits.GuildMessages,
+        Discord.GatewayIntentBits.GuildVoiceStates
+    ] });
 
 client.on('ready', async evnt => {
 	logger.info('Connected');
@@ -31,7 +37,12 @@ client.on('ready', async evnt => {
 
 client.on('messageCreate', async message => {
 	textChannel = message.channel;
-	if (message.author.bot) return;
+	if (message.author.bot) {
+        return;
+    }
+    activeVoiceConnections.forEach((vc) => {
+        logger.info(vc.state.status);
+    });
 	if (message.content.startsWith(prefix)) {
 
 		var voiceChannel = message.member.voice.channel;
@@ -39,6 +50,7 @@ client.on('messageCreate', async message => {
 
 		var args = message.content.substring(1).split(' ');
 		var cmd = args[0];
+        logger.info("cmd -> " + cmd + " in voice channel: " + voiceChannel + " with guild id " + voiceChannel.guildId);
 		
 		if (cmd == "fuckoff") {
 			leaveChannel(voiceChannel);
@@ -123,7 +135,7 @@ function play(voiceChannel, sound) {
 	if(activeVoiceConnections.has(voiceChannel.guildId))
 	{
 		voiceConnection = activeVoiceConnections.get(voiceChannel.guildId);
-		if(voiceConnection.joinConfig.channelId != voiceChannel.id)
+		if(voiceConnection.channelId != voiceChannel.id)
 		{
 			voiceConnection.disconnect();
 			voiceConnection.rejoin({ channelId: voiceChannel.id });
@@ -135,6 +147,13 @@ function play(voiceChannel, sound) {
 			guildId: voiceChannel.guildId,
 			adapterCreator: client.guilds.cache.get(voiceChannel.guildId).voiceAdapterCreator
 		});
+        voiceConnection.on('stateChange', (old_state, new_state) => {
+            logger.info("Voice connection change " + old_state.status + " => " + new_state.status);
+            if (old_state.status === DiscordVoice.VoiceConnectionStatus.Ready
+                && new_state.status === DiscordVoice.VoiceConnectionStatus.Connecting) {
+                voiceConnection.configureNetworking();
+            }
+        });
 		activeVoiceConnections.set(voiceChannel.guildId, voiceConnection);
 	}
 	if(activeAudioPlayers.has(voiceChannel.id))
@@ -246,8 +265,6 @@ function updateSounds(callback = null) {
 			}
 		});
 	});
-
-
 }
 
 client.login(token);

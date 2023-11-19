@@ -6,7 +6,7 @@
   "author": "Josselin Tsaikovski",
   "dependencies": {
     "@discordjs/voice": "*",
-    "discord.js": "*",
+    "discord.js": "^14.14.1",
     "ffmpeg-static": "*",
     "libsodium-wrappers": "*",
     "node-gyp": "*",
