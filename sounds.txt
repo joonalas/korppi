@@ -58,6 +58,7 @@ pentu
 persevankilaan
 pipi
 poliisejaturpaan
+puhelinluettelo
 richards
 roiskelappa
 ryybs

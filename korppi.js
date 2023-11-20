@@ -150,7 +150,7 @@ function printCommands() {
 client.on('voiceStateUpdate', (oldState, newState) => {
 	if(!oldState.member.user.bot
         && activeVoiceConnections.has(oldState.guild.id)
-        && oldState.channeId)
+        && oldState.channelId)
 	{
 		client.channels.fetch(oldState.channelId).then(voiceChannel => {
 			var voiceConnection = activeVoiceConnections.get(voiceChannel.guildId);
