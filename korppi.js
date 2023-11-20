@@ -9,10 +9,6 @@ var https = require('https');
 
 var textChannel = null;
 
-// Voice connections are mapped to guild ids, audio players are mapped to voice channel ids
-const activeVoiceConnections = new Map();
-const activeAudioPlayers = new Map();
-
 // Configure logger settings
 logger.remove(logger.transports.Console);
 logger.add(new logger.transports.Console, {
@@ -21,13 +17,82 @@ logger.add(new logger.transports.Console, {
 
 logger.level = 'debug';
 
+// Voice connections are mapped to guild ids, audio players are mapped to voice channel ids
+const activeVoiceConnections = new Map();
+const activeAudioPlayers = new Map();
+
+// Command functions
+function leaveCmd(message, args) {
+    leaveChannel(message.member.voice.channel);
+}
+
+function updateCmd(message, args) {
+    updateSounds();
+}
+
+function listCmd(message, args) {
+    showSounds();
+}
+
+function uploadCmd(message, args) {
+    if (message.attachments.size == 0) {
+        message.channel.send("Hemmetin sokea lepakko, et antanut minulle tiedostoa ladattavaksi!");
+    } else {
+        message.attachments.forEach(upload);
+    }
+}
+
+function deleteCmd(message, args) {
+    deleteSound(args[1]);
+}
+
+function helpCmd(message, args) {
+    printCommands();
+}
+
+function playCmd(message, args) {
+    var voiceChannel = message.member.voice.channel;
+    var cmd = args[0];
+    if (!voiceChannel) {
+        message.channel.send("Saatanan lurjus, ei se huutelu toimi, ellet ole kaikukammiossa :--()");
+    } else if (voiceChannel) {
+        readSoundsFile(data => {
+            const regex = new RegExp("^" + cmd + "$", "gm");
+            if(!regex.test(data))
+            {
+                textChannel.send("Mit\xE4p\xE4 jos toope k\xE4ytt\xE4isit vaikka oikeita komentoja?");
+                textChannel.send("Pelle...");
+                return;
+            }
+            play(voiceChannel, "Sounds/" + cmd + ".mp3");
+        });
+    }
+}
+
+// Commands
+const korppiCmd = new Map();
+[
+    { key: "fuckoff"  , value: leaveCmd  },
+    { key: "päivitä"  , value: updateCmd },
+    { key: "listaa"   , value: listCmd   },
+    { key: "upload"   , value: uploadCmd },
+    { key: "delete"   , value: deleteCmd },
+    { key: "help"     , value: helpCmd   },
+    { key: "play"     , value: playCmd   },
+].forEach((pair) => {
+    korppiCmd.set(pair.key, pair.value);
+});
+
+
 // Initialize Discord Bot
+// Message content is a privileged intent
 var client = new Discord.Client({ 
     intents: 
     [
         Discord.GatewayIntentBits.Guilds,
         Discord.GatewayIntentBits.GuildMessages,
-        Discord.GatewayIntentBits.GuildVoiceStates
+        Discord.GatewayIntentBits.GuildVoiceStates,
+        Discord.GatewayIntentBits.MessageContent
     ] });
 
 client.on('ready', async evnt => {
@@ -40,49 +105,15 @@ client.on('messageCreate', async message => {
 	if (message.author.bot) {
         return;
     }
-    activeVoiceConnections.forEach((vc) => {
-        logger.info(vc.state.status);
-    });
 	if (message.content.startsWith(prefix)) {
-
-		var voiceChannel = message.member.voice.channel;
-		var voiceConnection = null;
-
 		var args = message.content.substring(1).split(' ');
 		var cmd = args[0];
-        logger.info("cmd -> " + cmd + " in voice channel: " + voiceChannel + " with guild id " + voiceChannel.guildId);
-		
-		if (cmd == "fuckoff") {
-			leaveChannel(voiceChannel);
-		} else if (cmd == "p\xE4ivit\xE4") {
-			updateSounds();
-		} else if (cmd == "listaa") {
-			showSounds();
-		} else if (cmd == "upload") {
-			if (message.attachments.size == 0) {
-				message.channel.send("Hemmetin sokea lepakko, et antanut minulle tiedostoa ladattavaksi!");
-			} else {
-				message.attachments.forEach(upload);
-			}
-		} else if (cmd == "delete") {
-			deleteSound(args[1]);
-		} else if (cmd == "help") { 
-			printCommands();
-		} else if (!voiceChannel) {
-			message.channel.send("Saatanan lurjus, ei se huutelu toimi, ellet ole kaikukammiossa :--()");
-		} else if (voiceChannel) {
-			readSoundsFile(data => {
-				const regex = new RegExp("^" + cmd + "$", "gm");
-				if(!regex.test(data))
-				{
-					textChannel.send("Mit\xE4p\xE4 jos toope k\xE4ytt\xE4isit vaikka oikeita komentoja?");
-					textChannel.send("Pelle...");
-					return;
-				}
-				play(voiceChannel, "Sounds/" + cmd + ".mp3");
-			});
-		}
 
+        if (korppiCmd.has(cmd)) {
+            korppiCmd.get(cmd)(message, args);
+        } else {
+            korppiCmd.get("play")(message, args);
+        }
 	}
 });
 
@@ -117,7 +148,9 @@ function printCommands() {
 }
 
 client.on('voiceStateUpdate', (oldState, newState) => {
-	if(!oldState.member.user.bot && activeVoiceConnections.has(oldState.guild.id))
+	if(!oldState.member.user.bot
+        && activeVoiceConnections.has(oldState.guild.id)
+        && oldState.channeId)
 	{
 		client.channels.fetch(oldState.channelId).then(voiceChannel => {
 			var voiceConnection = activeVoiceConnections.get(voiceChannel.guildId);
@@ -184,8 +217,9 @@ function readSoundsFile(callback) {
 	});
 }
 
+
 function upload(attachment, snowflake) {
-	logger.info("Attachment: " + attachment);
+	logger.info("Attachment: " + attachment.name);
 	logger.info("Snowflake: " + snowflake);
 	var reqexpMP3 = /.*\.mp3/;
 	if (!reqexpMP3.test(attachment.name)) {
@@ -250,8 +284,6 @@ function updateSounds(callback = null) {
 			sounds += file.split(".")[0];
 			sounds += os.EOL;
 		});
-
-		//logger.info("Sounds: " + sounds);
 
 		fs.writeFile('sounds.txt', sounds, function (err) {
 			if (err) {

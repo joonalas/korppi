@@ -3,11 +3,12 @@ ainasaaoottaa
 alkkishemuli
 angst
 apua
+bitconnect
 eikiirettä
 enkirjota
 enooläski
 evvk
-gnot
+helppoa
 housuun
 huora
 ilmianna
@@ -19,6 +20,7 @@ kirves
 kiva
 kivespussikoju
 koditon
+kohtaon
 kopla
 krapula
 kuppa
@@ -26,7 +28,6 @@ kurttu
 kys
 käytänrahnet
 leikkaa
-loli
 maanjäristys
 mammutti
 mielessä
@@ -42,6 +43,7 @@ nirso
 nukuin
 nynnyt
 oikeus
+oletlintukin
 oletmiäs
 oletpipi
 omistautuminen
@@ -68,12 +70,14 @@ säkä
 tarvitaan
 teloitus
 toinennimi
+tosihasu
 tulkaakyytiin
 tuumastatoimeen
 uskomatonta
 vanhustakiusataan
 vankilaan
 venetsia
+vesisuodatin
 viihteelle
 viikset
 viinaa
