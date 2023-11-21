@@ -1,6 +1,6 @@
 {
   "name": "korppi-bot",
-  "version": "2.0.3",
+  "version": "2.1.0",
   "description": "Paskainen soundboard.",
   "main": "korppi.js",
   "author": "Josselin Tsaikovski",
